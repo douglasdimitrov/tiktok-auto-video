@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "videogen"
+version = "0.1.0"
+description = "Gera vídeos verticais com narração IA e faz upload automático no TikTok"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Douglas Dimitrov" }]
+dependencies = [
+    "edge-tts>=7.0.0",
+    "moviepy>=2.0.0",
+    "Pillow>=10.0.0",
+    "numpy>=1.26.0",
+    "requests>=2.31.0",
+    "openai>=1.40.0",
+    "typer>=0.12.0",
+    "rich>=13.7.0",
+    "tiktok-uploader>=1.2.0",
+    "python-dotenv>=1.0.0",
+    "pydantic>=2.6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.5.0",
+    "mypy>=1.10.0",
+    "types-requests",
+]
+
+[project.scripts]
+videogen = "videogen.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "W"]
+ignore = ["E501", "B008"]  # B008: typer/click idiom requires Option() in defaults
+
+[tool.mypy]
+python_version = "3.10"
+strict = false
+ignore_missing_imports = true

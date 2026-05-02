@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# Outputs / cache
+output/
+.cache/
+assets/cache/
+*.mp4
+*.mp3
+*.srt
+*.wav
+
+# Secrets
+.env
+.env.local
+*.cookie.txt
+cookies.txt
+tiktok_session.json
+
+# Editor
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Tests
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
