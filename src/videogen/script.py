@@ -1,6 +1,6 @@
 """Geração de roteiros (scripts) para vídeos curtos de curiosidades / stories.
 
-Usa Google Gemini 2.0 Flash (grátis até ~1500 req/dia no AI Studio).
+Usa Google Gemini 2.5 Flash (grátis no AI Studio).
 Get API key: https://aistudio.google.com/app/apikey
 """
 
@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 from videogen.config import SETTINGS
 
-DEFAULT_MODEL = "gemini-2.0-flash"
+DEFAULT_MODEL = "gemini-2.5-flash"
 
 SYSTEM_PROMPT = textwrap.dedent(
     """

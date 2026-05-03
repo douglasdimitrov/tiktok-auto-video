@@ -16,8 +16,8 @@ videogen auto --tema "5 curiosidades sobre o universo"
 
 ## O que ele faz
 
-1. **Gera o roteiro** a partir de um tema usando Google Gemini 2.0 Flash (grátis,
-   ~1500 req/dia), com gancho forte, frases curtas e CTA — ou recebe um roteiro
+1. **Gera o roteiro** a partir de um tema usando Google Gemini 2.5 Flash (grátis
+   no AI Studio), com gancho forte, frases curtas e CTA — ou recebe um roteiro
    pronto via `--script-file`.
 2. **Narra** o roteiro com `edge-tts` (vozes neurais grátis da Microsoft em PT-BR).
 3. **Busca fundos** no Pexels/Pixabay (vídeos verticais ou fotos) ou usa imagens
