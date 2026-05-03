@@ -25,6 +25,93 @@ app = typer.Typer(
 )
 
 
+def _slugify(value: str) -> str:
+    return "".join(c if c.isalnum() else "_" for c in value)[:50].strip("_") or "video"
+
+
+def _create_video(
+    *,
+    theme: str | None,
+    script_file: Path | None,
+    title: str | None,
+    output: Path | None,
+    voice: str | None,
+    duration: int,
+    query: str | None,
+    use_videos: bool,
+    local_bg: Path | None,
+    music: Path | None,
+    words_per_caption: int,
+) -> Path:
+    """Lógica compartilhada por `create` e `auto`. Retorna o caminho do .mp4 gerado."""
+    if not theme and not script_file:
+        rprint("[red]Erro:[/] forneça --tema ou --script-file")
+        raise typer.Exit(2)
+
+    if script_file:
+        body = Path(script_file).read_text(encoding="utf-8")
+        script = script_from_text(body, title=title or theme)
+    else:
+        assert theme is not None
+        rprint(Panel(f"Gerando roteiro para: [bold]{theme}[/]", style="cyan"))
+        script = generate_script(theme, duration_seconds=duration)
+
+    final_title = title or script.title
+    rprint(Panel(script.body, title=f"[bold]{final_title}[/]", style="green"))
+
+    voice_name = voice or SETTINGS.voice
+    audio_path = SETTINGS.cache_dir / f"narration_{abs(hash(script.body)) % 10**10}.mp3"
+    rprint(f"[cyan]Gerando narração com voz [bold]{voice_name}[/]...")
+    narration = synthesize(script.body, voice_name, audio_path)
+    rprint(f"  duração: {narration.duration:.2f}s, palavras: {len(narration.cues)}")
+
+    rprint("[cyan]Buscando fundos...")
+    bg_query = query or theme or final_title
+    backgrounds = fetch_backgrounds(
+        bg_query,
+        count=max(3, int(narration.duration / 4)),
+        prefer_videos=use_videos,
+        local_dir=local_bg,
+    )
+    rprint(f"  {len(backgrounds)} clipes ({sum(1 for c in backgrounds if c.is_video)} vídeos)")
+
+    if output is None:
+        output = SETTINGS.output_dir / f"{_slugify(final_title)}.mp4"
+
+    rprint(f"[cyan]Renderizando vídeo em [bold]{output}[/]...")
+    build_video(
+        narration=narration,
+        backgrounds=backgrounds,
+        out_path=output,
+        title=final_title,
+        music_path=music,
+        words_per_caption=words_per_caption,
+    )
+
+    srt_path = output.with_suffix(".srt")
+    srt_path.write_text(cues_to_srt(narration.cues), encoding="utf-8")
+
+    meta_path = output.with_suffix(".json")
+    meta_path.write_text(
+        json.dumps(
+            {
+                "title": final_title,
+                "caption": script.caption,
+                "hashtags": script.hashtags,
+                "duration": narration.duration,
+                "voice": voice_name,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    rprint(f"[green]Pronto![/] vídeo: {output}")
+    rprint(f"  legendas: {srt_path}")
+    rprint(f"  metadata: {meta_path}")
+    return output
+
+
 @app.command()
 def create(
     theme: str | None = typer.Option(
@@ -62,74 +149,21 @@ def create(
         None, "--music", help="Mp3 de música de fundo (volume baixo)."
     ),
     words_per_caption: int = typer.Option(3, "--wpc", help="Palavras por legenda na tela."),
-):
+) -> None:
     """Gera um vídeo vertical 9:16 com narração e legendas a partir de um tema ou roteiro."""
-    if not theme and not script_file:
-        rprint("[red]Erro:[/] forneça --tema ou --script-file")
-        raise typer.Exit(2)
-
-    if theme and not script_file:
-        rprint(Panel(f"Gerando roteiro para: [bold]{theme}[/]", style="cyan"))
-        script = generate_script(theme, duration_seconds=duration)
-    else:
-        assert script_file is not None
-        body = Path(script_file).read_text(encoding="utf-8")
-        script = script_from_text(body, title=title or theme)
-
-    title = title or script.title
-    rprint(Panel(script.body, title=f"[bold]{title}[/]", style="green"))
-
-    voice_name = voice or SETTINGS.voice
-    audio_path = SETTINGS.cache_dir / f"narration_{abs(hash(script.body)) % 10**10}.mp3"
-    rprint(f"[cyan]Gerando narração com voz [bold]{voice_name}[/]...")
-    narration = synthesize(script.body, voice_name, audio_path)
-    rprint(f"  duração: {narration.duration:.2f}s, palavras: {len(narration.cues)}")
-
-    rprint("[cyan]Buscando fundos...")
-    bg_query = query or theme or title
-    backgrounds = fetch_backgrounds(
-        bg_query,
-        count=max(3, int(narration.duration / 4)),
-        prefer_videos=use_videos,
-        local_dir=local_bg,
-    )
-    rprint(f"  {len(backgrounds)} clipes ({sum(1 for c in backgrounds if c.is_video)} vídeos)")
-
-    if output is None:
-        slug = "".join(c if c.isalnum() else "_" for c in (title or "video"))[:50].strip("_")
-        output = SETTINGS.output_dir / f"{slug}.mp4"
-
-    rprint(f"[cyan]Renderizando vídeo em [bold]{output}[/]...")
-    build_video(
-        narration=narration,
-        backgrounds=backgrounds,
-        out_path=output,
+    _create_video(
+        theme=theme,
+        script_file=script_file,
         title=title,
-        music_path=music,
+        output=output,
+        voice=voice,
+        duration=duration,
+        query=query,
+        use_videos=use_videos,
+        local_bg=local_bg,
+        music=music,
         words_per_caption=words_per_caption,
     )
-
-    srt_path = output.with_suffix(".srt")
-    srt_path.write_text(cues_to_srt(narration.cues), encoding="utf-8")
-
-    meta_path = output.with_suffix(".json")
-    meta_path.write_text(
-        json.dumps(
-            {
-                "title": title,
-                "caption": script.caption,
-                "hashtags": script.hashtags,
-                "duration": narration.duration,
-                "voice": voice_name,
-            },
-            ensure_ascii=False,
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
-    rprint(f"[green]Pronto![/] vídeo: {output}")
-    rprint(f"  legendas: {srt_path}")
-    rprint(f"  metadata: {meta_path}")
 
 
 @app.command()
@@ -174,10 +208,13 @@ def auto(
     cookies: Path = typer.Option(Path("cookies.txt"), "--cookies"),
     duration: int = typer.Option(45, "--duracao", "-d"),
     voice: str | None = typer.Option(None, "--voice", "-v"),
+    use_videos: bool = typer.Option(
+        False, "--bg-videos", help="Usar vídeos de fundo do Pexels."
+    ),
     headless: bool = typer.Option(True, "--headless/--no-headless"),
-):
+) -> None:
     """Pipeline completo: gera vídeo a partir de tema + sobe no TikTok."""
-    create(
+    output = _create_video(
         theme=theme,
         script_file=None,
         title=None,
@@ -185,17 +222,11 @@ def auto(
         voice=voice,
         duration=duration,
         query=None,
-        use_videos=False,
+        use_videos=use_videos,
         local_bg=None,
         music=None,
         words_per_caption=3,
     )
-
-    slug = "".join(c if c.isalnum() else "_" for c in theme)[:50].strip("_")
-    output = SETTINGS.output_dir / f"{slug}.mp4"
-    if not output.exists():
-        rprint(f"[red]Não encontrei o vídeo gerado em {output}[/]")
-        raise typer.Exit(1)
     upload(video=output, caption=None, cookies=cookies, headless=headless)
 
 

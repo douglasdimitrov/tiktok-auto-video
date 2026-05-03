@@ -7,12 +7,15 @@ from pathlib import Path
 from moviepy import (
     AudioFileClip,
     ColorClip,
+    CompositeAudioClip,
     CompositeVideoClip,
     ImageClip,
     TextClip,
+    VideoClip,
     VideoFileClip,
     concatenate_videoclips,
 )
+from moviepy.video.fx import Loop
 
 from videogen.config import SETTINGS
 from videogen.stock import StockClip
@@ -52,8 +55,6 @@ def build_video(
     audio = AudioFileClip(str(narration.audio_path)).with_duration(duration)
     if music_path and music_path.exists():
         try:
-            from moviepy import CompositeAudioClip
-
             music = (
                 AudioFileClip(str(music_path))
                 .with_duration(duration)
@@ -98,29 +99,29 @@ def _make_background(clips: list[StockClip], duration: float, width: int, height
 
 
 def _image_clip(path: Path, duration: float, width: int, height: int):
-    """Imagem com efeito Ken Burns (zoom suave)."""
+    """Imagem com efeito Ken Burns (zoom suave). Frames sempre (height, width, 3)."""
     base = ImageClip(str(path)).with_duration(duration)
     base = _cover_resize(base, width, height)
 
-    def make_frame(t):
+    def make_frame(t: float):
         zoom = 1.05 + 0.05 * (t / duration)
         frame = base.resized(zoom).get_frame(t)
-        return frame
-
-    from moviepy import VideoClip
+        fh, fw = frame.shape[:2]
+        y0 = max(0, (fh - height) // 2)
+        x0 = max(0, (fw - width) // 2)
+        return frame[y0 : y0 + height, x0 : x0 + width]
 
     return VideoClip(make_frame, duration=duration).with_duration(duration)
 
 
 def _video_clip(path: Path, duration: float, width: int, height: int):
-    clip = VideoFileClip(str(path))
+    clip = VideoFileClip(str(path)).without_audio()
     if clip.duration < duration:
-        clip = clip.with_effects([])
-    clip = clip.subclipped(0, min(duration, clip.duration))
-    clip = _cover_resize(clip, width, height)
-    if clip.duration < duration:
-        clip = clip.with_duration(duration)
-    return clip.without_audio()
+        # Loop o clipe até cobrir a duração desejada.
+        clip = clip.with_effects([Loop(duration=duration)])
+    else:
+        clip = clip.subclipped(0, duration)
+    return _cover_resize(clip, width, height)
 
 
 def _cover_resize(clip, target_w: int, target_h: int):
