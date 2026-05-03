@@ -16,8 +16,9 @@ videogen auto --tema "5 curiosidades sobre o universo"
 
 ## O que ele faz
 
-1. **Gera o roteiro** a partir de um tema usando OpenAI (gpt-4o-mini), com gancho
-   forte, frases curtas e CTA — ou recebe um roteiro pronto via `--script-file`.
+1. **Gera o roteiro** a partir de um tema usando Google Gemini 2.0 Flash (grátis,
+   ~1500 req/dia), com gancho forte, frases curtas e CTA — ou recebe um roteiro
+   pronto via `--script-file`.
 2. **Narra** o roteiro com `edge-tts` (vozes neurais grátis da Microsoft em PT-BR).
 3. **Busca fundos** no Pexels/Pixabay (vídeos verticais ou fotos) ou usa imagens
    suas de uma pasta local. Sem API key, gera fundos gradiente como fallback.
@@ -55,7 +56,7 @@ cp .env.example .env
 
 | Variável | Para quê | Como obter |
 |---|---|---|
-| `OPENAI_API_KEY` | Gerar roteiros automaticamente | https://platform.openai.com/api-keys |
+| `GEMINI_API_KEY` | Gerar roteiros automaticamente (grátis) | https://aistudio.google.com/app/apikey |
 | `PEXELS_API_KEY` | Imagens/vídeos de fundo | https://www.pexels.com/api/ (grátis) |
 | `PIXABAY_API_KEY` | Alternativa ao Pexels | https://pixabay.com/api/docs/ (grátis) |
 
@@ -132,7 +133,7 @@ videogen create --tema "..." --local-bg ./minhas_imagens/
 src/videogen/
 ├── cli.py        # Interface CLI (typer)
 ├── config.py     # Carrega .env
-├── script.py     # Gera roteiro com OpenAI
+├── script.py     # Gera roteiro com Google Gemini
 ├── tts.py        # Narração com edge-tts + word boundaries
 ├── stock.py      # Pexels / Pixabay / fallback gradiente
 ├── video.py      # Monta vídeo 9:16 com moviepy
@@ -146,7 +147,9 @@ src/videogen/
 - **TikTok ToS**: o método de upload via cookies não é oficial. Sua conta pode ser
   suspensa se detectarem automação. Use moderadamente, intercale com posts manuais,
   e considere migrar pra API oficial quando o canal crescer.
-- **OpenAI**: você é responsável pelo conteúdo gerado. Revise antes de postar.
+- **Gemini**: você é responsável pelo conteúdo gerado. Revise antes de postar.
+  A cota grátis do Google AI Studio inclui treinamento dos modelos com seus
+  prompts — não use dados sensíveis. Pra uso comercial sem isso, ative billing.
 
 ## Licença
 

@@ -1,11 +1,18 @@
-"""Geração de roteiros (scripts) para vídeos curtos de curiosidades / stories."""
+"""Geração de roteiros (scripts) para vídeos curtos de curiosidades / stories.
+
+Usa Google Gemini 2.0 Flash (grátis até ~1500 req/dia no AI Studio).
+Get API key: https://aistudio.google.com/app/apikey
+"""
 
 from __future__ import annotations
 
+import json
 import textwrap
 from dataclasses import dataclass
 
 from videogen.config import SETTINGS
+
+DEFAULT_MODEL = "gemini-2.0-flash"
 
 SYSTEM_PROMPT = textwrap.dedent(
     """
@@ -39,36 +46,71 @@ class Script:
         return f"{self.title}\n\n{tags}".strip()
 
 
-def generate_script(theme: str, *, duration_seconds: int = 45) -> Script:
-    """Usa OpenAI para gerar roteiro a partir de um tema."""
-    if not SETTINGS.openai_api_key:
+def generate_script(
+    theme: str, *, duration_seconds: int = 45, model: str = DEFAULT_MODEL
+) -> Script:
+    """Usa Google Gemini para gerar roteiro a partir de um tema."""
+    if not SETTINGS.gemini_api_key:
         raise RuntimeError(
-            "OPENAI_API_KEY não definido. Configure em .env ou use --script-file para fornecer "
-            "o texto manualmente."
+            "GEMINI_API_KEY não definido. Pegue uma chave grátis em "
+            "https://aistudio.google.com/app/apikey e configure em .env, "
+            "ou use --script-file para fornecer o texto manualmente."
         )
 
-    from openai import OpenAI
+    from google import genai
+    from google.genai import types
 
-    client = OpenAI(api_key=SETTINGS.openai_api_key)
+    client = genai.Client(api_key=SETTINGS.gemini_api_key)
 
     user_prompt = (
         f"Tema: {theme}\n"
-        f"Duração alvo: ~{duration_seconds} segundos (~{duration_seconds * 2.5:.0f} palavras).\n\n"
-        "Escreva o roteiro completo. Depois, em uma nova linha, escreva 'TITULO:' "
-        "seguido por um título chamativo de até 80 caracteres. Em outra linha, "
-        "escreva 'HASHTAGS:' seguido por 5 hashtags relevantes em português separadas por espaço."
+        f"Duração alvo: ~{duration_seconds} segundos (~{duration_seconds * 2.5:.0f} palavras)."
     )
 
-    resp = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.85,
+    response_schema = {
+        "type": "object",
+        "properties": {
+            "titulo": {
+                "type": "string",
+                "description": "Título chamativo até 80 caracteres.",
+            },
+            "roteiro": {
+                "type": "string",
+                "description": "Roteiro completo em parágrafos curtos, sem markdown.",
+            },
+            "hashtags": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "5 hashtags em português, sem o caractere '#'.",
+            },
+        },
+        "required": ["titulo", "roteiro", "hashtags"],
+    }
+
+    resp = client.models.generate_content(
+        model=model,
+        contents=user_prompt,
+        config=types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT,
+            temperature=0.85,
+            response_mime_type="application/json",
+            response_schema=response_schema,
+        ),
     )
-    raw = resp.choices[0].message.content or ""
-    return _parse_script(raw, fallback_title=theme)
+    raw = (resp.text or "").strip()
+    if not raw:
+        raise RuntimeError("Gemini retornou resposta vazia.")
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        # Fallback: parser de texto livre se Gemini ignorar JSON.
+        return _parse_script_legacy(raw, fallback_title=theme)
+
+    title = str(data.get("titulo") or theme).strip()[:80]
+    body = str(data.get("roteiro") or "").strip()
+    raw_tags = data.get("hashtags") or []
+    hashtags = [str(t).lstrip("#").strip() for t in raw_tags if str(t).strip()]
+    return Script(title=title, body=body, hashtags=hashtags)
 
 
 def script_from_text(
@@ -81,7 +123,7 @@ def script_from_text(
     )
 
 
-def _parse_script(raw: str, fallback_title: str) -> Script:
+def _parse_script_legacy(raw: str, fallback_title: str) -> Script:
     body_lines: list[str] = []
     title = fallback_title
     hashtags: list[str] = []

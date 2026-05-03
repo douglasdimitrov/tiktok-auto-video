@@ -14,7 +14,7 @@ load_dotenv(ROOT / ".env")
 
 @dataclass(frozen=True)
 class Settings:
-    openai_api_key: str | None
+    gemini_api_key: str | None
     pexels_api_key: str | None
     pixabay_api_key: str | None
     voice: str
@@ -31,7 +31,11 @@ class Settings:
         output_dir.mkdir(parents=True, exist_ok=True)
         cache_dir.mkdir(parents=True, exist_ok=True)
         return cls(
-            openai_api_key=os.getenv("OPENAI_API_KEY") or None,
+            gemini_api_key=(
+                os.getenv("GEMINI_API_KEY")
+                or os.getenv("GOOGLE_API_KEY")
+                or None
+            ),
             pexels_api_key=os.getenv("PEXELS_API_KEY") or None,
             pixabay_api_key=os.getenv("PIXABAY_API_KEY") or None,
             voice=os.getenv("VIDEOGEN_VOICE", "pt-BR-FranciscaNeural"),
