@@ -72,6 +72,27 @@ limitações (você fornece o roteiro manualmente / fundos gradiente).
 
 ## Uso
 
+### Interface web (filtros bonitos no navegador)
+
+Sobe um servidor local com formulário visual pra preencher os filtros (tema, voz,
+duração, fundo, etc.):
+
+```bash
+videogen web                      # http://127.0.0.1:8000
+videogen web --port 9000          # outra porta
+videogen web --host 0.0.0.0       # exposto na rede local
+```
+
+A página tem:
+- Campo de tema (ou textarea pra colar roteiro pronto)
+- Dropdown de vozes (carregado dinamicamente do edge-tts)
+- Slider de duração e palavras por legenda
+- Toggle entre imagens / vídeos de fundo
+- Painel de status com barra de progresso e log
+- Player com o resultado e botão de download (MP4 + SRT)
+
+Endpoints REST disponíveis em `/api/docs` (Swagger).
+
 ### Gerar vídeo + subir tudo automaticamente
 
 ```bash
@@ -137,7 +158,11 @@ src/videogen/
 ├── tts.py        # Narração com edge-tts + word boundaries
 ├── stock.py      # Pexels / Pixabay / fallback gradiente
 ├── video.py      # Monta vídeo 9:16 com moviepy
-└── upload.py     # Upload TikTok via tiktok-uploader
+├── upload.py     # Upload TikTok via tiktok-uploader
+└── web/          # Interface web (FastAPI + Tailwind)
+    ├── server.py
+    ├── jobs.py
+    └── templates/index.html
 ```
 
 ## Disclaimer legal

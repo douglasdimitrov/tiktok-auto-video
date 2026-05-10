@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>videogen — gerador de vídeos verticais</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50:  '#eef9ff',
+              100: '#d9f0ff',
+              200: '#bce4ff',
+              300: '#8ed2ff',
+              400: '#59b6ff',
+              500: '#2f96ff',
+              600: '#1976f1',
+              700: '#175fdc',
+              800: '#194fae',
+              900: '#1a4789',
+            },
+            accent: {
+              500: '#ff2d87',
+              600: '#e91075',
+            },
+          },
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+          },
+          boxShadow: {
+            glow: '0 0 0 1px rgba(255,255,255,0.04), 0 20px 40px -20px rgba(47,150,255,0.35)',
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    body {
+      background:
+        radial-gradient(1200px 600px at 80% -10%, rgba(255,45,135,0.18), transparent 60%),
+        radial-gradient(1000px 600px at -10% 10%, rgba(47,150,255,0.20), transparent 60%),
+        #0b1020;
+    }
+    .glass {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .grid-dots {
+      background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 18px; height: 18px;
+      border-radius: 9999px;
+      background: #2f96ff;
+      box-shadow: 0 0 0 4px rgba(47,150,255,0.18);
+      cursor: pointer;
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 18px; height: 18px;
+      border-radius: 9999px;
+      background: #2f96ff;
+      border: none;
+      cursor: pointer;
+    }
+    .toggle-bg { transition: background-color .2s ease; }
+    .toggle-dot { transition: transform .2s ease; }
+    details > summary {
+      list-style: none;
+    }
+    details > summary::-webkit-details-marker { display: none; }
+    .chev { transition: transform .2s ease; }
+    details[open] .chev { transform: rotate(180deg); }
+  </style>
+</head>
+<body class="min-h-screen text-slate-100 font-sans antialiased">
+  <div class="grid-dots fixed inset-0 -z-10 opacity-50"></div>
+
+  <header class="max-w-6xl mx-auto px-6 pt-10 pb-6 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-accent-500 flex items-center justify-center shadow-glow">
+        <svg viewBox="0 0 24 24" class="w-6 h-6 text-white" fill="currentColor">
+          <path d="M8 5v14l11-7z"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-xl font-bold tracking-tight">videogen</h1>
+        <p class="text-xs text-slate-400">vídeos verticais com narração IA</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 text-xs">
+      {% if gemini_ok %}
+        <span class="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">Gemini ativo</span>
+      {% else %}
+        <span class="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20">Gemini não configurado</span>
+      {% endif %}
+      {% if stock_provider %}
+        <span class="px-2.5 py-1 rounded-full bg-brand-500/10 text-brand-300 border border-brand-500/20">{{ stock_provider }}</span>
+      {% else %}
+        <span class="px-2.5 py-1 rounded-full bg-slate-500/10 text-slate-300 border border-slate-500/20">fundo: gradiente</span>
+      {% endif %}
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-6 pb-20">
+    <section class="mb-8 text-center md:text-left">
+      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight">
+        Crie um vídeo <span class="bg-gradient-to-r from-brand-400 to-accent-500 bg-clip-text text-transparent">9:16</span> em poucos cliques
+      </h2>
+      <p class="text-slate-400 mt-2 max-w-2xl">
+        Preencha o tema (ou cole um roteiro pronto), escolha a voz e o estilo de fundo. A IA gera tudo: roteiro, narração, legendas e o vídeo final.
+      </p>
+    </section>
+
+    <div class="grid lg:grid-cols-5 gap-6">
+      <!-- Filtros / formulário -->
+      <form id="job-form" class="glass rounded-2xl p-6 lg:col-span-3 shadow-glow space-y-6" autocomplete="off">
+        <!-- Tema -->
+        <div>
+          <label for="tema" class="block text-sm font-medium mb-1.5">Tema do vídeo</label>
+          <input
+            id="tema"
+            name="tema"
+            type="text"
+            placeholder="ex: 5 mistérios não resolvidos do oceano"
+            class="w-full bg-slate-950/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/60 focus:border-brand-500/60 placeholder:text-slate-500"
+          />
+          <p class="mt-1.5 text-xs text-slate-500">A IA usa o tema pra gerar o roteiro. Deixe em branco se for colar um roteiro pronto abaixo.</p>
+        </div>
+
+        <!-- Filtros principais (sempre visíveis) -->
+        <div class="grid sm:grid-cols-2 gap-4">
+          <!-- Voz -->
+          <div>
+            <label for="voice" class="block text-sm font-medium mb-1.5">Voz da narração</label>
+            <div class="relative">
+              <select
+                id="voice"
+                name="voice"
+                class="w-full appearance-none bg-slate-950/50 border border-white/10 rounded-xl px-4 py-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/60 focus:border-brand-500/60"
+              >
+                {% for v in voices %}
+                  <option value="{{ v.id }}" {% if v.id == default_voice %}selected{% endif %}>{{ v.label }}</option>
+                {% endfor %}
+              </select>
+              <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+          </div>
+
+          <!-- Duração -->
+          <div>
+            <label for="duracao" class="flex justify-between items-baseline text-sm font-medium mb-1.5">
+              <span>Duração alvo</span>
+              <span class="text-xs text-slate-400"><span id="duracao-value">45</span>s</span>
+            </label>
+            <input
+              id="duracao"
+              name="duracao"
+              type="range"
+              min="20"
+              max="90"
+              value="45"
+              step="5"
+              class="w-full accent-brand-500 bg-slate-900 rounded-lg h-2 appearance-none cursor-pointer"
+            />
+            <div class="flex justify-between text-[10px] text-slate-500 mt-1 px-1">
+              <span>20s</span><span>45s</span><span>90s</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fundo -->
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label for="bg_query" class="block text-sm font-medium mb-1.5">Busca de fundo (opcional)</label>
+            <input
+              id="bg_query"
+              name="bg_query"
+              type="text"
+              placeholder="ex: ocean waves (inglês tem mais resultados)"
+              class="w-full bg-slate-950/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/60 focus:border-brand-500/60 placeholder:text-slate-500"
+            />
+            <p class="mt-1.5 text-xs text-slate-500">Default: usa o tema.</p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1.5">Tipo de fundo</label>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="flex items-center justify-center gap-2 px-3 py-3 rounded-xl border border-white/10 bg-slate-950/40 cursor-pointer has-[:checked]:border-brand-500/60 has-[:checked]:bg-brand-500/10 has-[:checked]:text-brand-300 text-sm">
+                <input type="radio" name="bg_videos" value="false" checked class="sr-only" />
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                Imagens
+              </label>
+              <label class="flex items-center justify-center gap-2 px-3 py-3 rounded-xl border border-white/10 bg-slate-950/40 cursor-pointer has-[:checked]:border-brand-500/60 has-[:checked]:bg-brand-500/10 has-[:checked]:text-brand-300 text-sm">
+                <input type="radio" name="bg_videos" value="true" class="sr-only" />
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                Vídeos
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Avançado -->
+        <details class="border-t border-white/5 pt-4 group">
+          <summary class="flex items-center justify-between cursor-pointer text-sm font-medium text-slate-300 hover:text-white">
+            <span class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              Opções avançadas
+            </span>
+            <svg class="chev w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </summary>
+
+          <div class="mt-4 space-y-4">
+            <div>
+              <label for="titulo" class="block text-sm font-medium mb-1.5">Título (opcional)</label>
+              <input
+                id="titulo"
+                name="titulo"
+                type="text"
+                placeholder="ex: 5 mistérios surpreendentes"
+                class="w-full bg-slate-950/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/60 placeholder:text-slate-500"
+              />
+            </div>
+
+            <div>
+              <label for="words_per_caption" class="flex justify-between items-baseline text-sm font-medium mb-1.5">
+                <span>Palavras por legenda</span>
+                <span class="text-xs text-slate-400"><span id="wpc-value">3</span></span>
+              </label>
+              <input
+                id="words_per_caption"
+                name="words_per_caption"
+                type="range"
+                min="1"
+                max="6"
+                value="3"
+                step="1"
+                class="w-full accent-brand-500 bg-slate-900 rounded-lg h-2 appearance-none cursor-pointer"
+              />
+            </div>
+
+            <div>
+              <label for="script_text" class="block text-sm font-medium mb-1.5">Roteiro pronto (alternativa ao tema)</label>
+              <textarea
+                id="script_text"
+                name="script_text"
+                rows="5"
+                placeholder="Cole seu roteiro aqui se preferir não usar a IA. Frases curtas, sem markdown."
+                class="w-full bg-slate-950/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/60 placeholder:text-slate-500 resize-y"
+              ></textarea>
+            </div>
+          </div>
+        </details>
+
+        <!-- Submit -->
+        <div class="flex items-center gap-3 pt-2">
+          <button
+            type="submit"
+            id="submit-btn"
+            class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-brand-500 to-accent-500 hover:brightness-110 text-white font-semibold rounded-xl px-6 py-3 text-sm shadow-glow disabled:opacity-50 disabled:cursor-not-allowed transition"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span id="submit-label">Gerar vídeo</span>
+          </button>
+          <button
+            type="button"
+            id="reset-btn"
+            class="text-sm text-slate-400 hover:text-white px-3 py-2"
+          >
+            Limpar
+          </button>
+        </div>
+      </form>
+
+      <!-- Painel de status / resultado -->
+      <aside class="lg:col-span-2 space-y-4">
+        <div class="glass rounded-2xl p-6 shadow-glow">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-300">Status</h3>
+            <span id="status-pill" class="text-xs px-2.5 py-1 rounded-full bg-slate-500/10 text-slate-300 border border-slate-500/20">aguardando</span>
+          </div>
+
+          <div class="w-full h-2 bg-slate-800/80 rounded-full overflow-hidden">
+            <div id="progress-bar" class="h-full bg-gradient-to-r from-brand-500 to-accent-500 transition-all duration-300" style="width: 0%"></div>
+          </div>
+          <div class="flex justify-between text-xs text-slate-500 mt-1">
+            <span id="progress-text">0%</span>
+            <span id="elapsed-text"></span>
+          </div>
+
+          <div id="job-logs" class="mt-4 space-y-1 max-h-48 overflow-auto text-xs text-slate-400 font-mono"></div>
+        </div>
+
+        <div id="result-card" class="hidden glass rounded-2xl p-6 shadow-glow">
+          <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-300 mb-3">Resultado</h3>
+          <h4 id="result-title" class="text-lg font-bold mb-2"></h4>
+          <video
+            id="result-video"
+            class="w-full aspect-[9/16] rounded-xl bg-black mb-3 max-h-[420px] object-contain"
+            controls
+            playsinline
+          ></video>
+          <div class="flex flex-wrap gap-2 text-xs">
+            <a id="download-video" class="px-3 py-2 rounded-lg bg-brand-500/15 hover:bg-brand-500/25 text-brand-200 border border-brand-500/20" href="#" download>Baixar MP4</a>
+            <a id="download-srt" class="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10" href="#" download>Baixar SRT</a>
+          </div>
+          <details class="mt-3 text-xs">
+            <summary class="cursor-pointer text-slate-400 hover:text-white">Caption / hashtags</summary>
+            <pre id="result-caption" class="mt-2 whitespace-pre-wrap break-words bg-slate-950/60 border border-white/5 rounded-lg p-3 text-slate-300"></pre>
+          </details>
+        </div>
+      </aside>
+    </div>
+
+    <footer class="mt-12 text-center text-xs text-slate-500">
+      <p>
+        Feito com FastAPI · edge-tts · Google Gemini · moviepy.
+        <a class="underline decoration-dotted hover:text-white" href="/api/docs">API docs</a>
+      </p>
+    </footer>
+  </main>
+
+  <script>
+    const form = document.getElementById('job-form');
+    const submitBtn = document.getElementById('submit-btn');
+    const submitLabel = document.getElementById('submit-label');
+    const resetBtn = document.getElementById('reset-btn');
+    const statusPill = document.getElementById('status-pill');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const elapsedText = document.getElementById('elapsed-text');
+    const jobLogs = document.getElementById('job-logs');
+    const resultCard = document.getElementById('result-card');
+    const resultTitle = document.getElementById('result-title');
+    const resultVideo = document.getElementById('result-video');
+    const downloadVideo = document.getElementById('download-video');
+    const downloadSrt = document.getElementById('download-srt');
+    const resultCaption = document.getElementById('result-caption');
+
+    // Bindings dos sliders ao display.
+    const duracao = document.getElementById('duracao');
+    const duracaoValue = document.getElementById('duracao-value');
+    duracao.addEventListener('input', () => duracaoValue.textContent = duracao.value);
+
+    const wpc = document.getElementById('words_per_caption');
+    const wpcValue = document.getElementById('wpc-value');
+    wpc.addEventListener('input', () => wpcValue.textContent = wpc.value);
+
+    resetBtn.addEventListener('click', () => {
+      form.reset();
+      duracaoValue.textContent = duracao.value;
+      wpcValue.textContent = wpc.value;
+    });
+
+    const STATUS_STYLES = {
+      queued:  ['bg-slate-500/10 text-slate-300 border-slate-500/20', 'na fila'],
+      running: ['bg-brand-500/10 text-brand-300 border-brand-500/20',  'gerando'],
+      done:    ['bg-emerald-500/10 text-emerald-300 border-emerald-500/20', 'concluído'],
+      error:   ['bg-red-500/10 text-red-300 border-red-500/20', 'erro'],
+    };
+
+    function setStatus(status) {
+      const [cls, label] = STATUS_STYLES[status] || STATUS_STYLES.queued;
+      statusPill.className = 'text-xs px-2.5 py-1 rounded-full border ' + cls;
+      statusPill.textContent = label;
+    }
+
+    function setProgress(value) {
+      const v = Math.max(0, Math.min(100, value || 0));
+      progressBar.style.width = v + '%';
+      progressText.textContent = v + '%';
+    }
+
+    function renderLogs(logs) {
+      jobLogs.innerHTML = '';
+      for (const log of logs.slice(-20)) {
+        const li = document.createElement('div');
+        const t = new Date(log.timestamp * 1000).toLocaleTimeString();
+        li.textContent = `[${t}] ${log.message}`;
+        jobLogs.appendChild(li);
+      }
+      jobLogs.scrollTop = jobLogs.scrollHeight;
+    }
+
+    let pollTimer = null;
+    let startedAt = null;
+
+    function tickElapsed() {
+      if (!startedAt) return;
+      const s = Math.floor((Date.now() - startedAt) / 1000);
+      const m = Math.floor(s / 60);
+      elapsedText.textContent = `${m}m ${String(s % 60).padStart(2, '0')}s`;
+    }
+
+    async function pollJob(jobId) {
+      try {
+        const res = await fetch(`/api/jobs/${jobId}`);
+        if (!res.ok) throw new Error('Falha ao consultar status');
+        const data = await res.json();
+        setStatus(data.status);
+        setProgress(data.progress);
+        renderLogs(data.logs || []);
+
+        if (data.status === 'done') {
+          clearInterval(pollTimer);
+          startedAt = null;
+          submitBtn.disabled = false;
+          submitLabel.textContent = 'Gerar outro vídeo';
+          resultCard.classList.remove('hidden');
+          resultTitle.textContent = data.title || '';
+          resultVideo.src = data.video_url + `?t=${Date.now()}`;
+          downloadVideo.href = data.video_url;
+          downloadSrt.href = data.srt_url;
+          resultCaption.textContent =
+            (data.caption || '') +
+            (data.hashtags && data.hashtags.length ? '\n\n' + data.hashtags.map(t => '#' + t).join(' ') : '');
+        } else if (data.status === 'error') {
+          clearInterval(pollTimer);
+          startedAt = null;
+          submitBtn.disabled = false;
+          submitLabel.textContent = 'Tentar de novo';
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const fd = new FormData(form);
+      submitBtn.disabled = true;
+      submitLabel.textContent = 'Enviando...';
+      resultCard.classList.add('hidden');
+      jobLogs.innerHTML = '';
+      setStatus('queued');
+      setProgress(0);
+
+      const res = await fetch('/api/jobs', { method: 'POST', body: fd });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Erro desconhecido' }));
+        submitBtn.disabled = false;
+        submitLabel.textContent = 'Gerar vídeo';
+        setStatus('error');
+        renderLogs([{ timestamp: Date.now() / 1000, message: err.detail || 'Erro' }]);
+        return;
+      }
+      const job = await res.json();
+      submitLabel.textContent = 'Gerando vídeo...';
+      startedAt = Date.now();
+      tickElapsed();
+      pollTimer && clearInterval(pollTimer);
+      pollTimer = setInterval(() => { tickElapsed(); pollJob(job.id); }, 1500);
+      pollJob(job.id);
+    });
+
+    // Carrega vozes via API e enriquece o select. Mantém defaults se falhar.
+    (async () => {
+      try {
+        const res = await fetch('/api/voices?lang=pt');
+        const data = await res.json();
+        const select = document.getElementById('voice');
+        if (data && Array.isArray(data.voices) && data.voices.length > 3) {
+          const current = select.value;
+          select.innerHTML = '';
+          for (const v of data.voices) {
+            const opt = document.createElement('option');
+            opt.value = v.id;
+            opt.textContent = v.label;
+            if (v.id === current) opt.selected = true;
+            select.appendChild(opt);
+          }
+        }
+      } catch (_e) {
+        // ignora; mantém defaults renderizados pelo template.
+      }
+    })();
+  </script>
+</body>
+</html>

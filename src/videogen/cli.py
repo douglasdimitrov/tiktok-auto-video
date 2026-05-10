@@ -247,6 +247,25 @@ def voices(
     rprint(table)
 
 
+@app.command()
+def web(
+    host: str = typer.Option("127.0.0.1", "--host", help="Endereço de bind do servidor."),
+    port: int = typer.Option(8000, "--port", "-p", help="Porta HTTP."),
+    reload: bool = typer.Option(False, "--reload", help="Auto-reload (dev)."),
+) -> None:
+    """Sobe a interface web (filtros bonitos no navegador) em http://host:port."""
+    from videogen.web.server import run as run_web
+
+    rprint(
+        Panel(
+            f"Interface web em [bold]http://{host}:{port}[/]\n"
+            "Abra esse endereço no navegador para usar os filtros.",
+            style="cyan",
+        )
+    )
+    run_web(host=host, port=port, reload=reload)
+
+
 def main() -> None:
     try:
         app()

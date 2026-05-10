@@ -42,3 +42,6 @@ def test_imports():
     import videogen.tts  # noqa: F401
     import videogen.upload  # noqa: F401
     import videogen.video  # noqa: F401
+    import videogen.web  # noqa: F401
+    import videogen.web.jobs  # noqa: F401
+    import videogen.web.server  # noqa: F401
